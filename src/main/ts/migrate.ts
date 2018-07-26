@@ -1,7 +1,7 @@
 import pgPromise from "pg-promise";
 import * as fs from "fs";
 import * as Path from "path";
-import { IDatabaseConnectionConfig } from "./conn";
+import {IDatabaseConnectionConfig} from "./conn";
 
 interface ISchemaVersion {
   version: number;

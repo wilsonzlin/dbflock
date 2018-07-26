@@ -1,5 +1,5 @@
 import * as shelljs from "shelljs";
-import { IDatabaseConnectionConfig } from "./conn";
+import {IDatabaseConnectionConfig} from "./conn";
 
 export enum SchemaType {
   SCHEMA = "SCHEMA",
@@ -17,9 +17,16 @@ export enum SchemaType {
   GRANT_ATTRIBUTE = "GRANT_ATTRIBUTE",
 }
 
-export function pgdiff(from: IDatabaseConnectionConfig, to: IDatabaseConnectionConfig, schemaType: SchemaType): string {
-  let fromOptions = `-u ${from.user} -w ${from.password} -h ${from.host} -p ${from.port} -d ${from.database} -o 'sslmode=${from.SSL ? "enable" : "disable"} -s ${from.schema}`;
-  let toOptions = `-U ${to.user} -W ${to.password} -H ${to.host} -P ${to.port} -D ${to.database} -O 'sslmode=${to.SSL ? "enable" : "disable"} -S ${to.schema}`;
+// This type assertion only works if all values in the enum are the exact same as their enum names
+export const SCHEMA_TYPES: SchemaType[] = Object.keys(SchemaType) as SchemaType[];
+
+Object.freeze(SCHEMA_TYPES);
+
+export function pgdiff (from: IDatabaseConnectionConfig, to: IDatabaseConnectionConfig, schemaType: SchemaType): string {
+  let fromOptions = `-u ${from.user} -w ${from.password} -h ${from.host} -p ${from.port} -d ${from.database} -o 'sslmode=${from.SSL ?
+    "require" : "disable"}' -s ${from.schema}`;
+  let toOptions = `-U ${to.user} -W ${to.password} -H ${to.host} -P ${to.port} -D ${to.database} -O 'sslmode=${to.SSL ?
+    "require" : "disable"}' -S ${to.schema}`;
 
   let res = shelljs.exec(`${__dirname}/../resources/pgdiff ${fromOptions} ${toOptions} ${schemaType}`);
   let status = res.code;
@@ -35,20 +42,6 @@ export function pgdiff(from: IDatabaseConnectionConfig, to: IDatabaseConnectionC
   return diff;
 }
 
-export function diff(from: IDatabaseConnectionConfig, to: IDatabaseConnectionConfig): string {
-  return [
-    pgdiff(from, to, SchemaType.ROLE),
-    pgdiff(from, to, SchemaType.FUNCTION),
-    pgdiff(from, to, SchemaType.SCHEMA),
-    pgdiff(from, to, SchemaType.SEQUENCE),
-    pgdiff(from, to, SchemaType.TABLE),
-    pgdiff(from, to, SchemaType.COLUMN),
-    pgdiff(from, to, SchemaType.INDEX),
-    pgdiff(from, to, SchemaType.VIEW),
-    pgdiff(from, to, SchemaType.TRIGGER),
-    pgdiff(from, to, SchemaType.OWNER),
-    pgdiff(from, to, SchemaType.FOREIGN_KEY),
-    pgdiff(from, to, SchemaType.GRANT_RELATIONSHIP),
-    pgdiff(from, to, SchemaType.GRANT_ATTRIBUTE),
-  ].join("\n");
+export function diff (from: IDatabaseConnectionConfig, to: IDatabaseConnectionConfig, types: SchemaType[] = SCHEMA_TYPES): string {
+  return types.map(t => pgdiff(from, to, t)).join("\n");
 }
