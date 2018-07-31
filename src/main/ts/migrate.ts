@@ -55,43 +55,40 @@ export class MigrationAssistant {
   }
 
   async ensureHistoryTableExists (): Promise<void> {
-    await this.c.any(`CREATE TABLE IF NOT EXISTS ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} (
+    await this.c.none(`CREATE TABLE IF NOT EXISTS ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} (
       time TIMESTAMP NOT NULL DEFAULT NOW(),
-      version BIGINT NOT NULL CHECK (version > 0),
+      version BIGINT NOT NULL CHECK (version >= 0),
       successful BOOLEAN NOT NULL DEFAULT FALSE,
-      PRIMARY KEY (date)
+      PRIMARY KEY (time)
     )`);
   }
 
   async getCurrentVersion (): Promise<number | null> {
     await this.ensureHistoryTableExists();
-    let res = await this.c.any(
-      `SELECT version from ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} ORDER BY time DESC LIMIT 1`);
-    if (!res.length) {
-      return null;
-    }
-    return res[0].version;
+    let res = await this.c.oneOrNone(
+      `SELECT version from ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} WHERE successful = TRUE ORDER BY time DESC LIMIT 1`);
+    return res && Number.parseInt(res.version, 10);
   }
 
   async applySchemaAbsolutely (schema: ISchemaVersion): Promise<void> {
     if (schema.absolute === undefined) {
       throw new ReferenceError(`Schema version ${schema.version} has no absolute script`);
     }
-    await this.c.query(schema.absolute);
+    await this.c.none(schema.absolute);
   }
 
   async upgradeToSchema (schema: ISchemaVersion): Promise<void> {
     if (schema.upgrade === undefined) {
       throw new ReferenceError(`Schema version ${schema.version} has no upgrade script`);
     }
-    await this.c.query(schema.upgrade);
+    await this.c.none(schema.upgrade);
   }
 
   async downgradeFromSchema (schema: ISchemaVersion): Promise<void> {
     if (schema.downgrade === undefined) {
       throw new ReferenceError(`Schema version ${schema.version} has no downgrade script`);
     }
-    await this.c.query(schema.downgrade);
+    await this.c.none(schema.downgrade);
   }
 
   private getSchema (version: number): ISchemaVersion {
@@ -123,7 +120,7 @@ export class MigrationAssistant {
   }
 
   private async recordStartOfMigration (to: number): Promise<Date> {
-    let res = await this.c.one(`INSERT INTO ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} (version) VALUES ($1)`,
+    let res = await this.c.one(`INSERT INTO ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} (version) VALUES ($1) RETURNING time`,
       [to]);
     return res.time;
   }
