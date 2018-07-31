@@ -1,7 +1,7 @@
 import pgPromise from "pg-promise";
 import * as fs from "fs";
 import * as Path from "path";
-import {IDatabaseConnectionConfig} from "./conn";
+import {connect, IDatabaseConnectionConfig} from "./conn";
 
 interface ISchemaVersion {
   version: number;
@@ -51,13 +51,7 @@ export class MigrationAssistant {
       })
     );
 
-    this.c = pgPromise()({
-      database: db.database,
-      host: db.host,
-      password: db.password,
-      port: db.port,
-      user: db.user,
-    });
+    this.c = connect(db);
   }
 
   async ensureHistoryTableExists (): Promise<void> {
