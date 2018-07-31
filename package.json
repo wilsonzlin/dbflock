@@ -2,6 +2,7 @@
   "name": "dbflock",
   "version": "0.0.1",
   "description": "Tools for changing database schemas",
+  "bin": "dist/main/ts/main.js",
   "main": "dist/main/ts/main.js",
   "files": [
     "dist/**"
@@ -44,12 +45,12 @@
   "dependencies": {
     "pg-promise": "^8.4.5",
     "sacli": "0.0.1",
-    "shelljs": "^0.8.2"
+    "shelljs": "^0.8.2",
+    "pg-monitor": "^1.0.0"
   },
   "devDependencies": {
     "@types/node": "^10.5.2",
     "@types/pg-promise": "^5.4.3",
-    "@types/shelljs": "^0.8.0",
-    "pg-monitor": "^1.0.0"
+    "@types/shelljs": "^0.8.0"
   }
 }
