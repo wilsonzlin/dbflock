@@ -1,9 +1,10 @@
 export interface IDatabaseConnectionConfig {
   user: string;
   password: string;
-  SSL: boolean;
+  SSL?: boolean;
   host: string;
-  port: number;
+  port?: number;
   database: string;
-  schema: string;
+  schema?: string;
+}
 }
