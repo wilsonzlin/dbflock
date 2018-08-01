@@ -65,6 +65,8 @@ const MigrateCommand: sacli.Command = {
     if (!user || !password || !host || !pathname) {
       throw new SyntaxError(`Invalid connection URI`);
     }
+    user = decodeURIComponent(user);
+    password = decodeURIComponent(password);
 
     let port: number | undefined;
     if (portRaw) {
@@ -74,7 +76,7 @@ const MigrateCommand: sacli.Command = {
     if (!/^\/[^\/]+$/.test(pathname)) {
       throw new SyntaxError(`Invalid connection URI`);
     }
-    let database = pathname.slice(1);
+    let database = decodeURIComponent(pathname.slice(1));
 
     let sslParam = searchParams.get("ssl");
     let SSL = sslParam != undefined && !["false", "0", "n", "no", "off", "f"].includes(sslParam.toLowerCase());
