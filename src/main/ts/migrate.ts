@@ -24,7 +24,7 @@ export class MigrationAssistant {
   private readonly schemaVersions: ISchemaVersions;
   private readonly c: pgPromise.IDatabase<any>;
 
-  private static readonly DATABASE_SCHEMA_HISTORY_TABLE = "DatabaseSchemaHistory";
+  private static readonly DATABASE_SCHEMA_HISTORY_TABLE = "__dbflock_migration_history";
 
   constructor (db: IDatabaseConnectionConfig, schemasDir: string) {
     this.schemaVersions = Object.assign({}, ...fs.readdirSync(schemasDir)
