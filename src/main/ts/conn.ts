@@ -13,13 +13,20 @@ export interface IDatabaseConnectionConfig {
 const config = {};
 const create = pgPromise(config);
 const monitor = require("pg-monitor");
+let monitorEnabled = false;
 
-export function enableMonitor(): void {
-  monitor.attach(config);
+export function enableMonitor (): void {
+  if (!monitorEnabled) {
+    monitor.attach(config);
+    monitorEnabled = true;
+  }
 }
 
-export function disableMonitor() :void {
-  monitor.detach();
+export function disableMonitor (): void {
+  if (monitorEnabled) {
+    monitor.detach();
+    monitorEnabled = false;
+  }
 }
 
 export function connect(db: IDatabaseConnectionConfig): pgPromise.IDatabase<any> {
