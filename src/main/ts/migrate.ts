@@ -56,10 +56,11 @@ export class MigrationAssistant {
 
   async ensureHistoryTableExists (): Promise<void> {
     await this.c.none(`CREATE TABLE IF NOT EXISTS ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} (
+      id SERIAL NOT NULL,
       time TIMESTAMP NOT NULL DEFAULT NOW(),
-      version BIGINT NOT NULL CHECK (version >= 0),
+      version INT NOT NULL CHECK (version >= 0),
       successful BOOLEAN NOT NULL DEFAULT FALSE,
-      PRIMARY KEY (time)
+      PRIMARY KEY (id)
     )`);
   }
 
@@ -119,15 +120,15 @@ export class MigrationAssistant {
     return schemas;
   }
 
-  private async recordStartOfMigration (to: number): Promise<Date> {
-    let res = await this.c.one(`INSERT INTO ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} (version) VALUES ($1) RETURNING time`,
+  private async recordStartOfMigration (to: number): Promise<number> {
+    let res = await this.c.one(`INSERT INTO ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} (version) VALUES ($1) RETURNING id`,
       [to]);
-    return res.time;
+    return res.id;
   }
 
-  private async recordSuccessfulMigration (timestamp: Date): Promise<void> {
+  private async recordSuccessfulMigration (id: number): Promise<void> {
     await this.c.none(
-      `UPDATE ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} SET successful = TRUE WHERE time = $1`, [timestamp]);
+      `UPDATE ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} SET successful = TRUE WHERE id = $1`, [id]);
   }
 
   async migrate (toVersion: number): Promise<void> {
