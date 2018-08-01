@@ -29,7 +29,7 @@ export function disableMonitor (): void {
   }
 }
 
-export function connect(db: IDatabaseConnectionConfig): pgPromise.IDatabase<any> {
+export function connect (db: IDatabaseConnectionConfig): pgPromise.IDatabase<any> {
   let opt = {
     database: db.database,
     host: db.host,
@@ -37,6 +37,9 @@ export function connect(db: IDatabaseConnectionConfig): pgPromise.IDatabase<any>
     port: db.port,
     user: db.user,
   };
+
+  console.debug(`Connecting to database:`);
+  console.debug(opt);
 
   return create(opt);
 }

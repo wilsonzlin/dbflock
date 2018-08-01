@@ -134,6 +134,9 @@ export class MigrationAssistant {
   async migrate (toVersion: number): Promise<void> {
     let fromVersion = await this.getCurrentVersion();
 
+    console.info(`Currently on version ${fromVersion}`);
+    console.warn(`Targeting version ${toVersion}`);
+
     if (toVersion === fromVersion) {
       // Current version already meets requirements
       return;
@@ -146,9 +149,11 @@ export class MigrationAssistant {
       this[down ? "getSchemasForDowngrade" : "getSchemasForUpgrade"](fromVersion!, toVersion);
 
     for (let schema of schemas) {
+      console.log(`Starting migration to version ${schema.version}...`);
       let migrationID = await this.recordStartOfMigration(schema.version);
       await this[abs ? "applySchemaAbsolutely" : down ? "downgradeFromSchema" : "upgradeToSchema"](schema);
       await this.recordSuccessfulMigration(migrationID);
+      console.info(`Migrated to version ${schema.version}`);
     }
   }
 }
