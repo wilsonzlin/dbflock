@@ -144,10 +144,10 @@ export class MigrationAssistant {
     let schemas = abs ? [this.getSchema(toVersion)] :
       this[down ? "getSchemasForDowngrade" : "getSchemasForUpgrade"](fromVersion!, toVersion);
 
-    let migrationTimestamp = await this.recordStartOfMigration(toVersion);
     for (let schema of schemas) {
+      let migrationID = await this.recordStartOfMigration(schema.version);
       await this[abs ? "applySchemaAbsolutely" : down ? "downgradeFromSchema" : "upgradeToSchema"](schema);
+      await this.recordSuccessfulMigration(migrationID);
     }
-    await this.recordSuccessfulMigration(migrationTimestamp);
   }
 }
