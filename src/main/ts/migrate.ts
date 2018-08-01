@@ -68,7 +68,7 @@ export class MigrationAssistant {
     await this.ensureHistoryTableExists();
     let res = await this.c.oneOrNone(
       `SELECT version from ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} WHERE successful = TRUE ORDER BY time DESC LIMIT 1`);
-    return res && Number.parseInt(res.version, 10);
+    return res && res.version;
   }
 
   async applySchemaAbsolutely (schema: ISchemaVersion): Promise<void> {
