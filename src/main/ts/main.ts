@@ -2,6 +2,7 @@
 
 import * as sacli from "sacli";
 import {MigrateCommand} from "./cli/MigrateCommand";
+import {SetCommand} from "./cli/SetCommand";
 
 export * from "./conn";
 export * from "./migrate";
@@ -11,6 +12,7 @@ if (!module.parent) {
     name: "dbflock",
     commands: [
       MigrateCommand,
+      SetCommand,
     ],
   });
 

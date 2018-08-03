@@ -26,13 +26,13 @@ const SCHEMA_FILE_TYPES: { [file: string]: keyof ISchemaVersion } = {
 };
 
 export class MigrationAssistant {
-  private readonly schemaVersions: ISchemaVersions;
+  private readonly schemaVersions: ISchemaVersions | null;
   private readonly c: pgPromise.IDatabase<any>;
 
   private static readonly DATABASE_SCHEMA_HISTORY_TABLE = "__dbflock_migration_history";
 
-  constructor (db: IDatabaseConnectionConfig, schemasDir: string) {
-    this.schemaVersions = Object.assign({}, ...fs.readdirSync(schemasDir)
+  constructor (db: IDatabaseConnectionConfig, schemasDir: string | null) {
+    this.schemaVersions = schemasDir && Object.assign({}, ...fs.readdirSync(schemasDir)
       .map(v => {
         let version: ISchemaVersion = {
           version: Number.parseInt(v, 10),
@@ -59,7 +59,19 @@ export class MigrationAssistant {
     this.c = connect(db);
   }
 
-  async ensureHistoryTableExists (): Promise<void> {
+  getSchema (version: number): ISchemaVersion {
+    if (!this.schemaVersions) {
+      throw new ReferenceError(`Schema versions not initialised`);
+    }
+
+    let schema = this.schemaVersions[version];
+    if (!schema) {
+      throw new ReferenceError(`Schema version ${version} does not exist`);
+    }
+    return schema;
+  }
+
+  private async ensureHistoryTableExists (): Promise<void> {
     await this.c.none(`CREATE TABLE IF NOT EXISTS ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} (
       id SERIAL NOT NULL,
       time TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -76,11 +88,13 @@ export class MigrationAssistant {
     return res && res.version;
   }
 
-  async applySchemaAbsolutely (schema: ISchemaVersion): Promise<void> {
-    if (schema.absolute === undefined) {
-      throw new ReferenceError(`Schema version ${schema.version} has no absolute script`);
+  async setCurrentVersion (version: number): Promise<void> {
+    // getCurrentVersion will ensure table exists
+    if (await this.getCurrentVersion() !== version) {
+      await this.c.none(
+        `INSERT INTO ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} (version, successful) VALUES ($1, TRUE)`,
+        [version]);
     }
-    await this.c.none(schema.absolute);
   }
 
   buildMigrationPath (from: number | null, to: number): IUpgradePathUnit[] {
@@ -116,7 +130,8 @@ export class MigrationAssistant {
   }
 
   private async recordStartOfMigration (to: number): Promise<number> {
-    let res = await this.c.one(`INSERT INTO ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} (version) VALUES ($1) RETURNING id`,
+    let res = await this.c.one(
+      `INSERT INTO ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} (version) VALUES ($1) RETURNING id`,
       [to]);
     return res.id;
   }
