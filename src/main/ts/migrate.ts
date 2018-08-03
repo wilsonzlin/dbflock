@@ -10,6 +10,11 @@ interface ISchemaVersion {
   absolute?: string;
 }
 
+interface IUpgradePathUnit {
+  version: number;
+  schema: string;
+}
+
 type ISchemaVersions = {
   [version: number]: ISchemaVersion;
 };
@@ -78,43 +83,33 @@ export class MigrationAssistant {
     await this.c.none(schema.absolute);
   }
 
-  async upgradeToSchema (schema: ISchemaVersion): Promise<void> {
-    if (schema.upgrade === undefined) {
-      throw new ReferenceError(`Schema version ${schema.version} has no upgrade script`);
+  buildMigrationPath (from: number | null, to: number): IUpgradePathUnit[] {
+    if (from === null) {
+      let {absolute, version} = this.getSchema(to);
+      if (absolute === undefined) {
+        throw new ReferenceError(`Schema version ${version} has no absolute script`);
+      }
+      return [{version, schema: absolute}];
     }
-    await this.c.none(schema.upgrade);
-  }
 
-  async downgradeFromSchema (schema: ISchemaVersion): Promise<void> {
-    if (schema.downgrade === undefined) {
-      throw new ReferenceError(`Schema version ${schema.version} has no downgrade script`);
-    }
-    await this.c.none(schema.downgrade);
-  }
-
-  private getSchema (version: number): ISchemaVersion {
-    let schema = this.schemaVersions[version];
-    if (!schema) {
-      throw new ReferenceError(`Schema version ${version} does not exist`);
-    }
-    return schema;
-  }
-
-  private getSchemasForDowngrade (from: number, to: number): ISchemaVersion[] {
     let schemas = [];
 
-    for (let v = from; v > to; v--) {
-      schemas.push(this.getSchema(v));
-    }
-
-    return schemas;
-  }
-
-  private getSchemasForUpgrade (from: number, to: number): ISchemaVersion[] {
-    let schemas = [];
-
-    for (let v = from + 1; v <= to; v++) {
-      schemas.push(this.getSchema(v));
+    if (from > to) {
+      for (let v = from; v > to; v--) {
+        let {upgrade, version} = this.getSchema(v);
+        if (upgrade === undefined) {
+          throw new ReferenceError(`Schema version ${version} has no upgrade script`);
+        }
+        schemas.push({version, schema: upgrade});
+      }
+    } else {
+      for (let v = from + 1; v <= to; v++) {
+        let {downgrade, version} = this.getSchema(v);
+        if (downgrade === undefined) {
+          throw new ReferenceError(`Schema version ${version} has no downgrade script`);
+        }
+        schemas.push({version, schema: downgrade});
+      }
     }
 
     return schemas;
@@ -142,16 +137,12 @@ export class MigrationAssistant {
       return;
     }
 
-    let abs = fromVersion === null;
-    let down = !abs && fromVersion! > toVersion;
-
-    let schemas = abs ? [this.getSchema(toVersion)] :
-      this[down ? "getSchemasForDowngrade" : "getSchemasForUpgrade"](fromVersion!, toVersion);
+    let schemas = this.buildMigrationPath(fromVersion, toVersion);
 
     for (let schema of schemas) {
       console.log(`Starting migration to version ${schema.version}...`);
       let migrationID = await this.recordStartOfMigration(schema.version);
-      await this[abs ? "applySchemaAbsolutely" : down ? "downgradeFromSchema" : "upgradeToSchema"](schema);
+      await this.c.none(schema.schema);
       await this.recordSuccessfulMigration(migrationID);
       console.info(`Migrated to version ${schema.version}`);
     }
