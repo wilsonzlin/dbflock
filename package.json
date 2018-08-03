@@ -2,13 +2,13 @@
   "name": "dbflock",
   "version": "0.0.1",
   "description": "Tools for changing database schemas",
-  "bin": "dist/main/ts/main.js",
-  "main": "dist/main/ts/main.js",
+  "bin": "dist/main.js",
+  "main": "dist/main.js",
   "files": [
     "dist/**"
   ],
   "scripts": {
-    "build": "npm run clean && tsc && cp -r src/main/resources dist/main/. && chmod +x dist/main/ts/main.js",
+    "build": "npm run clean && tsc && chmod +x dist/main.js",
     "prepublishOnly": "npm run build",
     "clean": "rm -rf dist"
   },

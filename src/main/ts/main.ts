@@ -6,7 +6,6 @@ import {enableMonitor, IDatabaseConnectionConfig} from "./conn";
 import {MigrationAssistant} from "./migrate";
 
 export * from "./conn";
-export * from "./diff";
 export * from "./migrate";
 
 interface IMigrateCommand {

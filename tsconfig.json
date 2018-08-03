@@ -14,7 +14,7 @@
     "skipLibCheck": true,
     "allowJs": false,
     "declaration": true,
-    "outDir": "dist/main/ts",
+    "outDir": "dist",
     "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
