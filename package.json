@@ -1,6 +1,6 @@
 {
   "name": "dbflock",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Tools for changing database schemas",
   "bin": "dist/main.js",
   "main": "dist/main.js",
