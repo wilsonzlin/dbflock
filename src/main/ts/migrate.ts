@@ -109,20 +109,23 @@ export class MigrationAssistant {
     let schemas = [];
 
     if (from > to) {
+      // Downgrade
       for (let v = from; v > to; v--) {
-        let {upgrade, version} = this.getSchema(v);
-        if (upgrade === undefined) {
-          throw new ReferenceError(`Schema version ${version} has no upgrade script`);
-        }
-        schemas.push({version, schema: upgrade});
-      }
-    } else {
-      for (let v = from + 1; v <= to; v++) {
         let {downgrade, version} = this.getSchema(v);
         if (downgrade === undefined) {
           throw new ReferenceError(`Schema version ${version} has no downgrade script`);
         }
         schemas.push({version, schema: downgrade});
+      }
+
+    } else {
+      // Upgrade
+      for (let v = from + 1; v <= to; v++) {
+        let {upgrade, version} = this.getSchema(v);
+        if (upgrade === undefined) {
+          throw new ReferenceError(`Schema version ${version} has no upgrade script`);
+        }
+        schemas.push({version, schema: upgrade});
       }
     }
 
