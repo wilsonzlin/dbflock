@@ -1,6 +1,7 @@
 import * as sacli from "sacli";
 import {enableMonitor, parseConnectionURI} from "../conn";
 import {MigrationAssistant} from "../migrate";
+import { handleCLIResult } from "./handleCLIResult";
 
 export interface IMigrateCommand {
   schemas: string;
@@ -52,6 +53,6 @@ export const MigrateCommand: sacli.Command = {
       enableMonitor();
     }
 
-    return new MigrationAssistant(conn, schemas).migrate(version);
+    handleCLIResult(new MigrationAssistant(conn, schemas).migrate(version));
   },
 };
