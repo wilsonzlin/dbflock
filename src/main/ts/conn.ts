@@ -68,8 +68,10 @@ export function connect (db: IDatabaseConnectionConfig): pgPromise.IDatabase<any
     user: db.user,
   };
 
-  console.debug(`Connecting to database:`);
-  console.debug(opt);
+  if (monitorEnabled) {
+    console.debug(`Connecting to database:`);
+    console.debug(opt);
+  }
 
   return create(opt);
 }
