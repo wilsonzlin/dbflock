@@ -1,4 +1,4 @@
-export function handleCLIResult(promise: Promise<any>): void {
+export function handleCLIResult (promise: Promise<any>): void {
   promise
     .then(data => {
       console.log(data);

@@ -1,7 +1,7 @@
 {
   "name": "dbflock",
   "version": "0.0.3",
-  "description": "Tools for changing database schemas",
+  "description": "Migrate, change, apply, and manage database schemas",
   "bin": "dist/main.js",
   "main": "dist/main.js",
   "files": [
@@ -51,6 +51,7 @@
   "devDependencies": {
     "@types/node": "^10.5.2",
     "@types/pg-promise": "^5.4.3",
-    "@types/shelljs": "^0.8.0"
+    "@types/shelljs": "^0.8.0",
+    "typescript": "^3.8.3"
   }
 }

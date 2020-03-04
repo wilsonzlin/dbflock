@@ -1,5 +1,5 @@
-import pgPromise from "pg-promise";
-import {URL} from "url";
+import pgPromise from 'pg-promise';
+import {URL} from 'url';
 
 export interface IDatabaseConnectionConfig {
   user: string;
@@ -13,17 +13,17 @@ export interface IDatabaseConnectionConfig {
 
 const config = {};
 const create = pgPromise(config);
-const monitor = require("pg-monitor");
+const monitor = require('pg-monitor');
 let monitorEnabled = false;
 
-export function enableMonitor (): void {
+export const enableMonitor = (): void => {
   if (!monitorEnabled) {
     monitor.attach(config);
     monitorEnabled = true;
   }
-}
+};
 
-export function parseConnectionURI (uri: string): IDatabaseConnectionConfig {
+export const parseConnectionURI = (uri: string): IDatabaseConnectionConfig => {
   let {
     username: user,
     password,
@@ -47,20 +47,20 @@ export function parseConnectionURI (uri: string): IDatabaseConnectionConfig {
   if (!/^\/[^\/]+$/.test(pathname)) {
     throw new SyntaxError(`Invalid connection URI`);
   }
-  let database = decodeURIComponent(pathname.slice(1));
+  const database = decodeURIComponent(pathname.slice(1));
 
-  let sslParam = searchParams.get("ssl");
-  let SSL = sslParam != undefined && !["false", "0", "n", "no", "off", "f"].includes(sslParam.toLowerCase());
+  const sslParam = searchParams.get('ssl');
+  const SSL = sslParam != undefined && !['false', '0', 'n', 'no', 'off', 'f'].includes(sslParam.toLowerCase());
 
-  let schema = searchParams.get("schema") || undefined;
+  const schema = searchParams.get('schema') || undefined;
 
   return {
-    user, password, SSL, host, port, database, schema
+    user, password, SSL, host, port, database, schema,
   };
-}
+};
 
-export function connect (db: IDatabaseConnectionConfig): pgPromise.IDatabase<any> {
-  let opt = {
+export const connect = (db: IDatabaseConnectionConfig): pgPromise.IDatabase<any> => {
+  const opt = {
     database: db.database,
     host: db.host,
     password: db.password,
@@ -74,4 +74,4 @@ export function connect (db: IDatabaseConnectionConfig): pgPromise.IDatabase<any
   }
 
   return create(opt);
-}
+};
