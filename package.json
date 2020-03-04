@@ -1,6 +1,6 @@
 {
   "name": "dbflock",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Migrate, change, apply, and manage database schemas",
   "bin": "dist/main.js",
   "main": "dist/main.js",
