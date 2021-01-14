@@ -1,5 +1,5 @@
-import pgPromise from 'pg-promise';
-import {URL} from 'url';
+import pgPromise from "pg-promise";
+import { URL } from "url";
 
 export interface IDatabaseConnectionConfig {
   user: string;
@@ -13,7 +13,7 @@ export interface IDatabaseConnectionConfig {
 
 const config = {};
 const create = pgPromise(config);
-const monitor = require('pg-monitor');
+const monitor = require("pg-monitor");
 let monitorEnabled = false;
 
 export const enableMonitor = (): void => {
@@ -49,17 +49,27 @@ export const parseConnectionURI = (uri: string): IDatabaseConnectionConfig => {
   }
   const database = decodeURIComponent(pathname.slice(1));
 
-  const sslParam = searchParams.get('ssl');
-  const SSL = sslParam != undefined && !['false', '0', 'n', 'no', 'off', 'f'].includes(sslParam.toLowerCase());
+  const sslParam = searchParams.get("ssl");
+  const SSL =
+    sslParam != undefined &&
+    !["false", "0", "n", "no", "off", "f"].includes(sslParam.toLowerCase());
 
-  const schema = searchParams.get('schema') || undefined;
+  const schema = searchParams.get("schema") || undefined;
 
   return {
-    user, password, SSL, host, port, database, schema,
+    user,
+    password,
+    SSL,
+    host,
+    port,
+    database,
+    schema,
   };
 };
 
-export const connect = (db: IDatabaseConnectionConfig): pgPromise.IDatabase<any> => {
+export const connect = (
+  db: IDatabaseConnectionConfig
+): pgPromise.IDatabase<any> => {
   const opt = {
     database: db.database,
     host: db.host,

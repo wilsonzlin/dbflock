@@ -1,7 +1,7 @@
-import * as fs from 'fs';
-import * as Path from 'path';
-import pgPromise from 'pg-promise';
-import {connect, IDatabaseConnectionConfig} from './conn';
+import * as fs from "fs";
+import * as Path from "path";
+import pgPromise from "pg-promise";
+import { connect, IDatabaseConnectionConfig } from "./conn";
 
 interface ISchemaVersion {
   version: number;
@@ -19,44 +19,48 @@ type ISchemaVersions = {
 };
 
 const SCHEMA_FILE_TYPES: { [file: string]: keyof ISchemaVersion } = {
-  'apply.sql': 'apply',
-  'revert.sql': 'revert',
+  "apply.sql": "apply",
+  "revert.sql": "revert",
 };
 
 export class MigrationAssistant {
-  private static readonly DATABASE_SCHEMA_HISTORY_TABLE = 'dbflock_migration_history';
+  private static readonly DATABASE_SCHEMA_HISTORY_TABLE =
+    "dbflock_migration_history";
   private readonly schemaVersions: ISchemaVersions | null;
   private readonly c: pgPromise.IDatabase<any>;
 
-  constructor (db: IDatabaseConnectionConfig, schemasDir: string | null) {
-    this.schemaVersions = schemasDir && Object.assign({}, ...fs.readdirSync(schemasDir)
-      .map(v => {
-        const version: any = {
-          version: Number.parseInt(v, 10),
-        };
+  constructor(db: IDatabaseConnectionConfig, schemasDir: string | null) {
+    this.schemaVersions =
+      schemasDir &&
+      Object.assign(
+        {},
+        ...fs.readdirSync(schemasDir).map((v) => {
+          const version: any = {
+            version: Number.parseInt(v, 10),
+          };
 
-        for (const file of fs.readdirSync(Path.join(schemasDir, v))) {
-          const path = Path.join(schemasDir, v, file);
+          for (const file of fs.readdirSync(Path.join(schemasDir, v))) {
+            const path = Path.join(schemasDir, v, file);
 
-          const type = SCHEMA_FILE_TYPES[file];
+            const type = SCHEMA_FILE_TYPES[file];
 
-          if (!type) {
-            throw new TypeError(`Unrecognised schema file "${path}"`);
+            if (!type) {
+              throw new TypeError(`Unrecognised schema file "${path}"`);
+            }
+
+            version[type] = fs.readFileSync(path, "utf8");
           }
 
-          version[type] = fs.readFileSync(path, 'utf8');
-        }
-
-        return {
-          [version.version]: version,
-        };
-      }),
-    );
+          return {
+            [version.version]: version,
+          };
+        })
+      );
 
     this.c = connect(db);
   }
 
-  getSchema (version: number): ISchemaVersion {
+  getSchema(version: number): ISchemaVersion {
     if (!this.schemaVersions) {
       throw new ReferenceError(`Schema versions not initialised`);
     }
@@ -68,49 +72,55 @@ export class MigrationAssistant {
     return schema;
   }
 
-  async getCurrentVersion (): Promise<number | null> {
+  async getCurrentVersion(): Promise<number | null> {
     await this.ensureHistoryTableExists();
     const res = await this.c.oneOrNone(
-      `SELECT version from ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} WHERE successful = TRUE ORDER BY time DESC LIMIT 1`);
+      `SELECT version from ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} WHERE successful = TRUE ORDER BY time DESC LIMIT 1`
+    );
     return res?.version;
   }
 
-  async setCurrentVersion (version: number): Promise<void> {
+  async setCurrentVersion(version: number): Promise<void> {
     // getCurrentVersion will ensure table exists
-    if (await this.getCurrentVersion() !== version) {
+    if ((await this.getCurrentVersion()) !== version) {
       await this.c.none(
         `INSERT INTO ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} (version, successful) VALUES ($1, TRUE)`,
-        [version]);
+        [version]
+      );
     }
   }
 
-  buildMigrationPath (from: number, to: number): IMigrationPathUnit[] {
+  buildMigrationPath(from: number, to: number): IMigrationPathUnit[] {
     const schemas = [];
 
     if (from > to) {
       // Downgrade
       for (let v = from; v > to; v--) {
-        const {revert, version} = this.getSchema(v);
+        const { revert, version } = this.getSchema(v);
         if (revert === undefined) {
-          throw new ReferenceError(`Schema version ${version} has no revert script`);
+          throw new ReferenceError(
+            `Schema version ${version} has no revert script`
+          );
         }
-        schemas.push({version, schema: revert});
+        schemas.push({ version, schema: revert });
       }
     } else {
       // Upgrade
       for (let v = from + 1; v <= to; v++) {
-        const {apply, version} = this.getSchema(v);
+        const { apply, version } = this.getSchema(v);
         if (apply === undefined) {
-          throw new ReferenceError(`Schema version ${version} has no apply script`);
+          throw new ReferenceError(
+            `Schema version ${version} has no apply script`
+          );
         }
-        schemas.push({version, schema: apply});
+        schemas.push({ version, schema: apply });
       }
     }
 
     return schemas;
   }
 
-  async migrate (toVersion: number): Promise<void> {
+  async migrate(toVersion: number): Promise<void> {
     const fromVersion = await this.getCurrentVersion();
 
     console.info(`Currently on version ${fromVersion}`);
@@ -132,8 +142,9 @@ export class MigrationAssistant {
     }
   }
 
-  private async ensureHistoryTableExists (): Promise<void> {
-    await this.c.none(`CREATE TABLE IF NOT EXISTS ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} (
+  private async ensureHistoryTableExists(): Promise<void> {
+    await this.c
+      .none(`CREATE TABLE IF NOT EXISTS ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} (
       id SERIAL NOT NULL,
       time TIMESTAMP NOT NULL DEFAULT NOW(),
       version INT NOT NULL CHECK (version >= 0),
@@ -142,15 +153,18 @@ export class MigrationAssistant {
     )`);
   }
 
-  private async recordStartOfMigration (to: number): Promise<number> {
+  private async recordStartOfMigration(to: number): Promise<number> {
     const res = await this.c.one(
       `INSERT INTO ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} (version) VALUES ($1) RETURNING id`,
-      [to]);
+      [to]
+    );
     return res.id;
   }
 
-  private async recordSuccessfulMigration (id: number): Promise<void> {
+  private async recordSuccessfulMigration(id: number): Promise<void> {
     await this.c.none(
-      `UPDATE ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} SET successful = TRUE WHERE id = $1`, [id]);
+      `UPDATE ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} SET successful = TRUE WHERE id = $1`,
+      [id]
+    );
   }
 }

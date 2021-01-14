@@ -1,10 +1,11 @@
-export function handleCLIResult (promise: Promise<any>): void {
+export function handleCLIResult(promise: Promise<any>): void {
   promise
-    .then(data => {
+    .then((data) => {
       console.log(data);
       process.exit(0);
     })
-    .catch(err => {
+    .catch((err) => {
       console.error(err);
+      process.exit(1);
     });
 }
