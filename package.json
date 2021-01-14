@@ -2,7 +2,9 @@
   "name": "dbflock",
   "version": "0.0.4",
   "description": "Migrate, change, apply, and manage database schemas",
-  "bin": "dist/main.js",
+  "bin": {
+    "dbflock": "dist/main.js"
+  },
   "main": "dist/main.js",
   "files": [
     "dist/**"
@@ -17,25 +19,24 @@
     "url": "git+https://github.com/wilsonzlin/dbflock.git"
   },
   "keywords": [
-    "db",
+    "change",
     "database",
-    "relational",
-    "mysql",
-    "sql",
-    "postgres",
-    "postgresql",
+    "db",
+    "downgrade",
     "migrate",
     "migration",
+    "mysql",
+    "postgres",
+    "postgresql",
+    "relational",
     "schema",
-    "change",
+    "sql",
     "update",
-    "upgrade",
-    "downgrade"
+    "upgrade"
   ],
   "author": {
-    "email": "contact@wilsonl.in",
-    "name": "Wilson Lin",
-    "url": "https://wilsonl.in/"
+    "email": "npm@wilsonl.in",
+    "name": "Wilson Lin"
   },
   "license": "MIT",
   "bugs": {
@@ -43,15 +44,14 @@
   },
   "homepage": "https://github.com/wilsonzlin/dbflock#readme",
   "dependencies": {
+    "pg-monitor": "^1.0.0",
     "pg-promise": "^8.4.5",
     "sacli": "0.0.1",
-    "shelljs": "^0.8.2",
-    "pg-monitor": "^1.0.0"
+    "shelljs": "^0.8.2"
   },
   "devDependencies": {
-    "@types/node": "^10.5.2",
-    "@types/pg-promise": "^5.4.3",
+    "@types/node": "^14.14.20",
     "@types/shelljs": "^0.8.0",
-    "typescript": "^3.8.3"
+    "typescript": "^4.1.3"
   }
 }

@@ -5,12 +5,11 @@ import {connect, IDatabaseConnectionConfig} from './conn';
 
 interface ISchemaVersion {
   version: number;
-  upgrade?: string;
-  downgrade?: string;
-  absolute?: string;
+  apply?: string;
+  revert?: string;
 }
 
-interface IUpgradePathUnit {
+interface IMigrationPathUnit {
   version: number;
   schema: string;
 }
@@ -20,13 +19,12 @@ type ISchemaVersions = {
 };
 
 const SCHEMA_FILE_TYPES: { [file: string]: keyof ISchemaVersion } = {
-  'down.sql': 'downgrade',
-  'up.sql': 'upgrade',
-  'abs.sql': 'absolute',
+  'apply.sql': 'apply',
+  'revert.sql': 'revert',
 };
 
 export class MigrationAssistant {
-  private static readonly DATABASE_SCHEMA_HISTORY_TABLE = '__dbflock_migration_history';
+  private static readonly DATABASE_SCHEMA_HISTORY_TABLE = 'dbflock_migration_history';
   private readonly schemaVersions: ISchemaVersions | null;
   private readonly c: pgPromise.IDatabase<any>;
 
@@ -37,7 +35,7 @@ export class MigrationAssistant {
           version: Number.parseInt(v, 10),
         };
 
-        for (let file of fs.readdirSync(Path.join(schemasDir, v))) {
+        for (const file of fs.readdirSync(Path.join(schemasDir, v))) {
           const path = Path.join(schemasDir, v, file);
 
           const type = SCHEMA_FILE_TYPES[file];
@@ -63,7 +61,7 @@ export class MigrationAssistant {
       throw new ReferenceError(`Schema versions not initialised`);
     }
 
-    let schema = this.schemaVersions[version];
+    const schema = this.schemaVersions[version];
     if (!schema) {
       throw new ReferenceError(`Schema version ${version} does not exist`);
     }
@@ -74,7 +72,7 @@ export class MigrationAssistant {
     await this.ensureHistoryTableExists();
     const res = await this.c.oneOrNone(
       `SELECT version from ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} WHERE successful = TRUE ORDER BY time DESC LIMIT 1`);
-    return res && res.version;
+    return res?.version;
   }
 
   async setCurrentVersion (version: number): Promise<void> {
@@ -86,35 +84,26 @@ export class MigrationAssistant {
     }
   }
 
-  buildMigrationPath (from: number | null, to: number): IUpgradePathUnit[] {
-    if (from === null) {
-      const {absolute, version} = this.getSchema(to);
-      if (absolute === undefined) {
-        throw new ReferenceError(`Schema version ${version} has no absolute script`);
-      }
-      return [{version, schema: absolute}];
-    }
-
+  buildMigrationPath (from: number, to: number): IMigrationPathUnit[] {
     const schemas = [];
 
     if (from > to) {
       // Downgrade
       for (let v = from; v > to; v--) {
-        const {downgrade, version} = this.getSchema(v);
-        if (downgrade === undefined) {
-          throw new ReferenceError(`Schema version ${version} has no downgrade script`);
+        const {revert, version} = this.getSchema(v);
+        if (revert === undefined) {
+          throw new ReferenceError(`Schema version ${version} has no revert script`);
         }
-        schemas.push({version, schema: downgrade});
+        schemas.push({version, schema: revert});
       }
-
     } else {
       // Upgrade
       for (let v = from + 1; v <= to; v++) {
-        const {upgrade, version} = this.getSchema(v);
-        if (upgrade === undefined) {
-          throw new ReferenceError(`Schema version ${version} has no upgrade script`);
+        const {apply, version} = this.getSchema(v);
+        if (apply === undefined) {
+          throw new ReferenceError(`Schema version ${version} has no apply script`);
         }
-        schemas.push({version, schema: upgrade});
+        schemas.push({version, schema: apply});
       }
     }
 
@@ -132,7 +121,7 @@ export class MigrationAssistant {
       return;
     }
 
-    const schemas = this.buildMigrationPath(fromVersion, toVersion);
+    const schemas = this.buildMigrationPath(fromVersion ?? -1, toVersion);
 
     for (const schema of schemas) {
       console.log(`Starting migration to version ${schema.version}...`);
@@ -154,7 +143,7 @@ export class MigrationAssistant {
   }
 
   private async recordStartOfMigration (to: number): Promise<number> {
-    let res = await this.c.one(
+    const res = await this.c.one(
       `INSERT INTO ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} (version) VALUES ($1) RETURNING id`,
       [to]);
     return res.id;
