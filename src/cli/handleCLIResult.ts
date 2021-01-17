@@ -1,7 +1,9 @@
 export const handleCLIResult = (promise: Promise<any>): void => {
   promise.then(
     (data) => {
-      console.log(data);
+      if (data !== undefined) {
+        console.log(data);
+      }
       process.exit(0);
     },
     (err) => {
