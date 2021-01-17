@@ -23,6 +23,10 @@ export const SetCommand: sacli.Command = {
       throw new TypeError(`Missing arguments`);
     }
 
-    handleCLIResult(new MigrationAssistant([]).setCurrentVersion(version));
+    handleCLIResult(
+      MigrationAssistant.withConnectionOnly().then((a) =>
+        a.setCurrentVersion(version)
+      )
+    );
   },
 };

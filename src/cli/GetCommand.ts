@@ -9,6 +9,8 @@ export const GetCommand: sacli.Command = {
   description: "Get the current version of the schema.",
   options: [],
   action: ({}: IGetCommand) => {
-    handleCLIResult(new MigrationAssistant([]).getCurrentVersion());
+    handleCLIResult(
+      MigrationAssistant.withConnectionOnly().then((a) => a.getCurrentVersion())
+    );
   },
 };

@@ -14,7 +14,7 @@ interface IMigrationPathUnit {
 
 const readFileIfExists = async (path: string) => {
   try {
-    return readFile(path, "utf8");
+    return await readFile(path, "utf8");
   } catch (err) {
     if (err.code === "ENOENT") {
       return;
@@ -26,7 +26,12 @@ const readFileIfExists = async (path: string) => {
 export class MigrationAssistant {
   private static readonly DATABASE_SCHEMA_HISTORY_TABLE =
     "dbflock_migration_history";
-  private readonly client = new Client();
+
+  static async withConnectionOnly() {
+    const conn = new Client();
+    await conn.connect();
+    return new MigrationAssistant(conn, []);
+  }
 
   static async fromSchemasDir(dir: string) {
     const schemas: ISchemaVersion[] = [];
@@ -44,10 +49,15 @@ export class MigrationAssistant {
         schemas[version] = { apply, revert };
       })
     );
-    return new MigrationAssistant(schemas);
+    const conn = new Client();
+    await conn.connect();
+    return new MigrationAssistant(conn, schemas);
   }
 
-  constructor(private readonly schemas: ISchemaVersion[]) {}
+  constructor(
+    private readonly client: Client,
+    private readonly schemas: ISchemaVersion[]
+  ) {}
 
   async getCurrentVersion(): Promise<number | null> {
     await this.ensureHistoryTableExists();
