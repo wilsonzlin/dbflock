@@ -38,8 +38,8 @@ export class MigrationAssistant {
           return;
         }
         const [apply, revert] = await Promise.all([
-          readFileIfExists(join(dirent, "apply.sql")),
-          readFileIfExists(join(dirent, "revert.sql")),
+          readFileIfExists(join(dir, dirent, "apply.sql")),
+          readFileIfExists(join(dir, dirent, "revert.sql")),
         ]);
         schemas[version] = { apply, revert };
       })
