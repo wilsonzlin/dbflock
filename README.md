@@ -31,7 +31,7 @@ Make sure that npm's `bin` directory is in the `PATH` environment variable. The 
 
 ### Migrate to a schema version
 
-The migration behaviour is described in the [How it works](#how-it-works) section.
+The migration behaviour is described in the [How it works](#how-it-works) section. If `-v` is omitted, the highest schema version is used.
 
 For full options, see `dbflock migrate --help`.
 

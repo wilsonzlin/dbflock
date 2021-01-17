@@ -120,7 +120,7 @@ export class MigrationAssistant {
     return schemas;
   }
 
-  async migrate(toVersion: number): Promise<void> {
+  async migrate(toVersion: number | null): Promise<void> {
     const fromVersion = await this.getCurrentVersion();
 
     console.info(`Currently on version ${fromVersion}`);
@@ -131,7 +131,16 @@ export class MigrationAssistant {
       return;
     }
 
-    const schemas = this.buildMigrationPath(fromVersion ?? -1, toVersion);
+    if (!this.schemaVersions) {
+      throw new ReferenceError(`Schema versions not initialised`);
+    }
+    const schemas = this.buildMigrationPath(
+      fromVersion ?? -1,
+      toVersion ??
+        Math.max(
+          ...Object.keys(this.schemaVersions).map((v) => Number.parseInt(v, 10))
+        )
+    );
 
     for (const schema of schemas) {
       console.log(`Starting migration to version ${schema.version}...`);

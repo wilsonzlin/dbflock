@@ -34,7 +34,8 @@ export const MigrateCommand: sacli.Command = {
       name: "version",
       type: Number,
       typeLabel: "{underline natural}",
-      description: "Schema version to migrate to.",
+      description:
+        "Schema version to migrate to. If omitted, the highest version available is used.",
     },
     {
       alias: "d",
@@ -44,11 +45,7 @@ export const MigrateCommand: sacli.Command = {
     },
   ],
   action: ({ schemas, version, connection, debug }: IMigrateCommand) => {
-    if (
-      schemas == undefined ||
-      version == undefined ||
-      connection == undefined
-    ) {
+    if (schemas == undefined || connection == undefined) {
       throw new TypeError(`Missing arguments`);
     }
 
@@ -58,6 +55,8 @@ export const MigrateCommand: sacli.Command = {
       enableMonitor();
     }
 
-    handleCLIResult(new MigrationAssistant(conn, schemas).migrate(version));
+    handleCLIResult(
+      new MigrationAssistant(conn, schemas).migrate(version ?? null)
+    );
   },
 };
