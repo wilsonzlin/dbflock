@@ -5,14 +5,13 @@ import { GetCommand } from "./cli/GetCommand";
 import { MigrateCommand } from "./cli/MigrateCommand";
 import { SetCommand } from "./cli/SetCommand";
 
-export * from "./conn";
 export * from "./migrate";
 
-if (!module.parent) {
+if (require.main === module) {
   const cli = sacli.build({
     name: "dbflock",
     commands: [MigrateCommand, GetCommand, SetCommand],
   });
 
-  sacli.parse(process.argv.slice(2), cli);
+  sacli.exec(process.argv.slice(2), cli);
 }

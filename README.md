@@ -1,6 +1,6 @@
 # dbflock
 
-Run SQL scripts to upgrade and downgrade database schemas. Currently only works for PostgreSQL.
+Run SQL scripts to upgrade and downgrade PostgreSQL database schemas.
 
 ## How it works
 
@@ -18,6 +18,8 @@ If the current database schema version is 12 and the target is 14, `13/apply.sql
 The current version, and a history of schema migrations, are stored in a table called `dbflock_migration_history`, which is created automatically.
 
 ## Usage
+
+The [standard libpq environment variables](https://www.postgresql.org/docs/current/libpq-envars.html) will be used to connect to the database.
 
 ### Get the CLI
 
@@ -38,7 +40,6 @@ For full options, see `dbflock migrate --help`.
 ```bash
 dbflock migrate \
   -s /path/to/schemas/ \
-  -c postgres://admin:admin@localhost/db?schema=schema \
   -v 42
 ```
 
@@ -52,7 +53,6 @@ For full options, see `dbflock set --help`.
 
 ```bash
 dbflock set \
-  -c postgres://admin:admin@localhost/db?schema=schema \
   -v 42
 ```
 
@@ -61,6 +61,5 @@ dbflock set \
 For full options, see `dbflock get --help`.
 
 ```bash
-dbflock get \
-  -c postgres://admin:admin@localhost/db?schema=schema
+dbflock get
 ```

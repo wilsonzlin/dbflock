@@ -1,89 +1,68 @@
-import * as fs from "fs";
-import * as Path from "path";
-import pgPromise from "pg-promise";
-import { connect, IDatabaseConnectionConfig } from "./conn";
+import { readdir, readFile } from "fs/promises";
+import { join } from "path";
+import { Client } from "pg";
 
 interface ISchemaVersion {
-  version: number;
   apply?: string;
   revert?: string;
 }
 
 interface IMigrationPathUnit {
   version: number;
-  schema: string;
+  script: string;
 }
 
-type ISchemaVersions = {
-  [version: number]: ISchemaVersion;
-};
-
-const SCHEMA_FILE_TYPES: { [file: string]: keyof ISchemaVersion } = {
-  "apply.sql": "apply",
-  "revert.sql": "revert",
+const readFileIfExists = async (path: string) => {
+  try {
+    return readFile(path, "utf8");
+  } catch (err) {
+    if (err.code === "ENOENT") {
+      return;
+    }
+    throw err;
+  }
 };
 
 export class MigrationAssistant {
   private static readonly DATABASE_SCHEMA_HISTORY_TABLE =
     "dbflock_migration_history";
-  private readonly schemaVersions: ISchemaVersions | null;
-  private readonly c: pgPromise.IDatabase<any>;
+  private readonly client = new Client();
 
-  constructor(db: IDatabaseConnectionConfig, schemasDir: string | null) {
-    this.schemaVersions =
-      schemasDir &&
-      Object.assign(
-        {},
-        ...fs.readdirSync(schemasDir).map((v) => {
-          const version: any = {
-            version: Number.parseInt(v, 10),
-          };
-
-          for (const file of fs.readdirSync(Path.join(schemasDir, v))) {
-            const path = Path.join(schemasDir, v, file);
-
-            const type = SCHEMA_FILE_TYPES[file];
-
-            if (!type) {
-              throw new TypeError(`Unrecognised schema file "${path}"`);
-            }
-
-            version[type] = fs.readFileSync(path, "utf8");
-          }
-
-          return {
-            [version.version]: version,
-          };
-        })
-      );
-
-    this.c = connect(db);
+  static async fromSchemasDir(dir: string) {
+    const schemas: ISchemaVersion[] = [];
+    const dirents = await readdir(dir);
+    await Promise.all(
+      dirents.map(async (dirent) => {
+        const version = Number.parseInt(dirent, 10);
+        if (!Number.isSafeInteger(version) || version < 0) {
+          return;
+        }
+        const [apply, revert] = await Promise.all([
+          readFileIfExists(join(dirent, "apply.sql")),
+          readFileIfExists(join(dirent, "revert.sql")),
+        ]);
+        schemas[version] = { apply, revert };
+      })
+    );
+    return new MigrationAssistant(schemas);
   }
 
-  getSchema(version: number): ISchemaVersion {
-    if (!this.schemaVersions) {
-      throw new ReferenceError(`Schema versions not initialised`);
-    }
-
-    const schema = this.schemaVersions[version];
-    if (!schema) {
-      throw new ReferenceError(`Schema version ${version} does not exist`);
-    }
-    return schema;
-  }
+  constructor(private readonly schemas: ISchemaVersion[]) {}
 
   async getCurrentVersion(): Promise<number | null> {
     await this.ensureHistoryTableExists();
-    const res = await this.c.oneOrNone(
-      `SELECT version from ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} WHERE successful = TRUE ORDER BY time DESC LIMIT 1`
-    );
+    const res = await this.client
+      .query(
+        `SELECT version from ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} WHERE successful = TRUE ORDER BY time DESC LIMIT 1`
+      )
+      .then((q) => q.rows[0]);
     return res?.version;
   }
 
   async setCurrentVersion(version: number): Promise<void> {
     // getCurrentVersion will ensure table exists
     if ((await this.getCurrentVersion()) !== version) {
-      await this.c.none(
+      await this.client.query(
         `INSERT INTO ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} (version, successful) VALUES ($1, TRUE)`,
         [version]
       );
@@ -91,33 +70,29 @@ export class MigrationAssistant {
   }
 
   buildMigrationPath(from: number, to: number): IMigrationPathUnit[] {
-    const schemas = [];
+    const path = [];
 
     if (from > to) {
       // Downgrade
       for (let v = from; v > to; v--) {
-        const { revert, version } = this.getSchema(v);
+        const revert = this.schemas[v]?.revert;
         if (revert === undefined) {
-          throw new ReferenceError(
-            `Schema version ${version} has no revert script`
-          );
+          throw new ReferenceError(`Schema version ${v} has no revert script`);
         }
-        schemas.push({ version, schema: revert });
+        path.push({ version: v, script: revert });
       }
     } else {
       // Upgrade
       for (let v = from + 1; v <= to; v++) {
-        const { apply, version } = this.getSchema(v);
+        const apply = this.schemas[v]?.apply;
         if (apply === undefined) {
-          throw new ReferenceError(
-            `Schema version ${version} has no apply script`
-          );
+          throw new ReferenceError(`Schema version ${v} has no apply script`);
         }
-        schemas.push({ version, schema: apply });
+        path.push({ version: v, script: apply });
       }
     }
 
-    return schemas;
+    return path;
   }
 
   async migrate(toVersion: number | null): Promise<void> {
@@ -131,29 +106,23 @@ export class MigrationAssistant {
       return;
     }
 
-    if (!this.schemaVersions) {
-      throw new ReferenceError(`Schema versions not initialised`);
-    }
-    const schemas = this.buildMigrationPath(
+    const path = this.buildMigrationPath(
       fromVersion ?? -1,
-      toVersion ??
-        Math.max(
-          ...Object.keys(this.schemaVersions).map((v) => Number.parseInt(v, 10))
-        )
+      toVersion ?? this.schemas.length - 1
     );
 
-    for (const schema of schemas) {
-      console.log(`Starting migration to version ${schema.version}...`);
-      const migrationID = await this.recordStartOfMigration(schema.version);
-      await this.c.none(schema.schema);
+    for (const { version, script } of path) {
+      console.log(`Starting migration to version ${version}...`);
+      const migrationID = await this.recordStartOfMigration(version);
+      await this.client.query(script);
       await this.recordSuccessfulMigration(migrationID);
-      console.info(`Migrated to version ${schema.version}`);
+      console.info(`Migrated to version ${version}`);
     }
   }
 
   private async ensureHistoryTableExists(): Promise<void> {
-    await this.c
-      .none(`CREATE TABLE IF NOT EXISTS ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} (
+    await this.client
+      .query(`CREATE TABLE IF NOT EXISTS ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} (
       id SERIAL NOT NULL,
       time TIMESTAMP NOT NULL DEFAULT NOW(),
       version INT NOT NULL CHECK (version >= 0),
@@ -163,15 +132,17 @@ export class MigrationAssistant {
   }
 
   private async recordStartOfMigration(to: number): Promise<number> {
-    const res = await this.c.one(
-      `INSERT INTO ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} (version) VALUES ($1) RETURNING id`,
-      [to]
-    );
+    const res = await this.client
+      .query(
+        `INSERT INTO ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} (version) VALUES ($1) RETURNING id`,
+        [to]
+      )
+      .then((q) => q.rows[0]);
     return res.id;
   }
 
   private async recordSuccessfulMigration(id: number): Promise<void> {
-    await this.c.none(
+    await this.client.query(
       `UPDATE ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} SET successful = TRUE WHERE id = $1`,
       [id]
     );
