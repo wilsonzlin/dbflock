@@ -1,6 +1,6 @@
 import { readdir, readFile } from "fs/promises";
 import { join } from "path";
-import { Client, ClientConfig } from "pg";
+import * as pg from "pg";
 
 interface ISchemaVersion {
   apply?: string;
@@ -23,12 +23,24 @@ const readFileIfExists = async (path: string) => {
   }
 };
 
+export type ClientConfig = pg.ClientConfig & { useNative?: boolean };
+
+const createConn = (config?: ClientConfig) => {
+  if (config?.useNative) {
+    if (!pg.native) {
+      throw new Error("pg native bindings are not available");
+    }
+    return new pg.native.Client(config);
+  }
+  return new pg.Client(config);
+};
+
 export class MigrationAssistant {
   private static readonly DATABASE_SCHEMA_HISTORY_TABLE =
     "dbflock_migration_history";
 
   static async withConnectionOnly(clientConfig?: ClientConfig) {
-    const conn = new Client(clientConfig);
+    const conn = createConn(clientConfig);
     await conn.connect();
     return new MigrationAssistant(conn, []);
   }
@@ -49,13 +61,13 @@ export class MigrationAssistant {
         schemas[version] = { apply, revert };
       })
     );
-    const conn = new Client(clientConfig);
+    const conn = createConn(clientConfig);
     await conn.connect();
     return new MigrationAssistant(conn, schemas);
   }
 
   constructor(
-    private readonly client: Client,
+    private readonly client: pg.Client,
     private readonly schemas: ISchemaVersion[]
   ) {}
 
