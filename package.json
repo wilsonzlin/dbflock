@@ -1,6 +1,6 @@
 {
   "name": "dbflock",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Migrate, change, apply, and manage PostgreSQL database schemas",
   "bin": {
     "dbflock": "dist/main.js"
