@@ -25,24 +25,12 @@ const readFileIfExists = async (path: string) => {
 
 export type ClientConfig = pg.ClientConfig & { useNative?: boolean };
 
-const createConn = (config?: ClientConfig) => {
-  if (config?.useNative) {
-    if (!pg.native) {
-      throw new Error("pg native bindings are not available");
-    }
-    return new pg.native.Client(config);
-  }
-  return new pg.Client(config);
-};
-
 export class MigrationAssistant {
   private static readonly DATABASE_SCHEMA_HISTORY_TABLE =
     "dbflock_migration_history";
 
   static async withConnectionOnly(clientConfig?: ClientConfig) {
-    const conn = createConn(clientConfig);
-    await conn.connect();
-    return new MigrationAssistant(conn, []);
+    return new MigrationAssistant(clientConfig, []);
   }
 
   static async fromSchemasDir(dir: string, clientConfig?: ClientConfig) {
@@ -61,30 +49,47 @@ export class MigrationAssistant {
         schemas[version] = { apply, revert };
       })
     );
-    const conn = createConn(clientConfig);
-    await conn.connect();
-    return new MigrationAssistant(conn, schemas);
+    return new MigrationAssistant(clientConfig, schemas);
   }
 
   constructor(
-    private readonly client: pg.Client,
+    private readonly clientConfig: ClientConfig | undefined,
     private readonly schemas: ISchemaVersion[]
   ) {}
 
+  private async connectAndQuery(query: string, params?: (string | number)[]) {
+    const config = this.clientConfig;
+    let client: pg.Client;
+    if (config?.useNative) {
+      if (!pg.native) {
+        throw new Error("pg native bindings are not available");
+      }
+      client = new pg.native.Client(config);
+    } else {
+      client = new pg.Client(config);
+    }
+
+    await client.connect();
+
+    try {
+      return await client.query(query, params);
+    } finally {
+      await client.end();
+    }
+  }
+
   async getCurrentVersion(): Promise<number | null> {
     await this.ensureHistoryTableExists();
-    const res = await this.client
-      .query(
-        `SELECT version from ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} WHERE successful = TRUE ORDER BY time DESC LIMIT 1`
-      )
-      .then((q) => q.rows[0]);
+    const res = await this.connectAndQuery(
+      `SELECT version from ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} WHERE successful = TRUE ORDER BY time DESC LIMIT 1`
+    ).then((q) => q.rows[0]);
     return res?.version;
   }
 
   async setCurrentVersion(version: number): Promise<void> {
     // getCurrentVersion will ensure table exists
     if ((await this.getCurrentVersion()) !== version) {
-      await this.client.query(
+      await this.connectAndQuery(
         `INSERT INTO ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} (version, successful) VALUES ($1, TRUE)`,
         [version]
       );
@@ -136,15 +141,15 @@ export class MigrationAssistant {
     for (const { version, script } of path) {
       console.log(`Starting migration to version ${version}...`);
       const migrationID = await this.recordStartOfMigration(version);
-      await this.client.query(script);
+      await this.connectAndQuery(script);
       await this.recordSuccessfulMigration(migrationID);
       console.info(`Migrated to version ${version}`);
     }
   }
 
   private async ensureHistoryTableExists(): Promise<void> {
-    await this.client
-      .query(`CREATE TABLE IF NOT EXISTS ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} (
+    await this
+      .connectAndQuery(`CREATE TABLE IF NOT EXISTS ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} (
       id SERIAL NOT NULL,
       time TIMESTAMP NOT NULL DEFAULT NOW(),
       version INT NOT NULL CHECK (version >= 0),
@@ -154,17 +159,15 @@ export class MigrationAssistant {
   }
 
   private async recordStartOfMigration(to: number): Promise<number> {
-    const res = await this.client
-      .query(
-        `INSERT INTO ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} (version) VALUES ($1) RETURNING id`,
-        [to]
-      )
-      .then((q) => q.rows[0]);
+    const res = await this.connectAndQuery(
+      `INSERT INTO ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} (version) VALUES ($1) RETURNING id`,
+      [to]
+    ).then((q) => q.rows[0]);
     return res.id;
   }
 
   private async recordSuccessfulMigration(id: number): Promise<void> {
-    await this.client.query(
+    await this.connectAndQuery(
       `UPDATE ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} SET successful = TRUE WHERE id = $1`,
       [id]
     );
