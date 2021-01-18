@@ -1,6 +1,6 @@
 import { readdir, readFile } from "fs/promises";
 import { join } from "path";
-import { Client } from "pg";
+import { Client, ClientConfig } from "pg";
 
 interface ISchemaVersion {
   apply?: string;
@@ -27,13 +27,13 @@ export class MigrationAssistant {
   private static readonly DATABASE_SCHEMA_HISTORY_TABLE =
     "dbflock_migration_history";
 
-  static async withConnectionOnly() {
-    const conn = new Client();
+  static async withConnectionOnly(clientConfig?: ClientConfig) {
+    const conn = new Client(clientConfig);
     await conn.connect();
     return new MigrationAssistant(conn, []);
   }
 
-  static async fromSchemasDir(dir: string) {
+  static async fromSchemasDir(dir: string, clientConfig?: ClientConfig) {
     const schemas: ISchemaVersion[] = [];
     const dirents = await readdir(dir);
     await Promise.all(
@@ -49,7 +49,7 @@ export class MigrationAssistant {
         schemas[version] = { apply, revert };
       })
     );
-    const conn = new Client();
+    const conn = new Client(clientConfig);
     await conn.connect();
     return new MigrationAssistant(conn, schemas);
   }
