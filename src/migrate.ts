@@ -125,8 +125,8 @@ export class MigrationAssistant {
   async migrate(toVersion: number | null): Promise<void> {
     const fromVersion = await this.getCurrentVersion();
 
-    console.info(`Currently on version ${fromVersion}`);
-    console.warn(`Targeting version ${toVersion}`);
+    console.log(`Currently on version ${fromVersion}`);
+    console.log(`Targeting version ${toVersion}`);
 
     if (toVersion === fromVersion) {
       // Current version already meets requirements
@@ -143,7 +143,7 @@ export class MigrationAssistant {
       const migrationID = await this.recordStartOfMigration(version);
       await this.connectAndQuery(script);
       await this.recordSuccessfulMigration(migrationID);
-      console.info(`Migrated to version ${version}`);
+      console.log(`Migrated to version ${version}`);
     }
   }
 
