@@ -24,7 +24,7 @@ export const SetCommand: sacli.Command = {
     }
 
     handleCLIResult(
-      MigrationAssistant.withConnectionOnly().then((a) =>
+      MigrationAssistant.withConnectionOnly(undefined, console.log).then((a) =>
         a.setCurrentVersion(version)
       )
     );

@@ -10,7 +10,9 @@ export const GetCommand: sacli.Command = {
   options: [],
   action: ({}: IGetCommand) => {
     handleCLIResult(
-      MigrationAssistant.withConnectionOnly().then((a) => a.getCurrentVersion())
+      MigrationAssistant.withConnectionOnly(undefined, console.log).then((a) =>
+        a.getCurrentVersion()
+      )
     );
   },
 };

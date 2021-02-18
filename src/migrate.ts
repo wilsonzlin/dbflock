@@ -23,17 +23,26 @@ const readFileIfExists = async (path: string) => {
   }
 };
 
+type Logger = (msg: string) => void;
+
 export type ClientConfig = pg.ClientConfig & { useNative?: boolean };
 
 export class MigrationAssistant {
   private static readonly DATABASE_SCHEMA_HISTORY_TABLE =
     "dbflock_migration_history";
 
-  static async withConnectionOnly(clientConfig?: ClientConfig) {
-    return new MigrationAssistant(clientConfig, []);
+  static async withConnectionOnly(
+    clientConfig?: ClientConfig,
+    logger?: Logger
+  ) {
+    return new MigrationAssistant(clientConfig, [], logger);
   }
 
-  static async fromSchemasDir(dir: string, clientConfig?: ClientConfig) {
+  static async fromSchemasDir(
+    dir: string,
+    clientConfig?: ClientConfig,
+    logger?: Logger
+  ) {
     const schemas: ISchemaVersion[] = [];
     const dirents = await readdir(dir);
     await Promise.all(
@@ -49,12 +58,13 @@ export class MigrationAssistant {
         schemas[version] = { apply, revert };
       })
     );
-    return new MigrationAssistant(clientConfig, schemas);
+    return new MigrationAssistant(clientConfig, schemas, logger);
   }
 
   constructor(
     private readonly clientConfig: ClientConfig | undefined,
-    private readonly schemas: ISchemaVersion[]
+    private readonly schemas: ISchemaVersion[],
+    private readonly logger?: (msg: string) => void
   ) {}
 
   private async connectAndQuery(query: string, params?: (string | number)[]) {
@@ -83,7 +93,7 @@ export class MigrationAssistant {
     const res = await this.connectAndQuery(
       `SELECT version from ${MigrationAssistant.DATABASE_SCHEMA_HISTORY_TABLE} WHERE successful = TRUE ORDER BY time DESC LIMIT 1`
     ).then((q) => q.rows[0]);
-    return res?.version;
+    return res?.version ?? null;
   }
 
   async setCurrentVersion(version: number): Promise<void> {
@@ -125,8 +135,8 @@ export class MigrationAssistant {
   async migrate(toVersion: number | null): Promise<void> {
     const fromVersion = await this.getCurrentVersion();
 
-    console.log(`Currently on version ${fromVersion}`);
-    console.log(`Targeting version ${toVersion}`);
+    this.logger?.(`Currently on version ${fromVersion}`);
+    this.logger?.(`Targeting version ${toVersion}`);
 
     if (toVersion === fromVersion) {
       // Current version already meets requirements
@@ -139,11 +149,11 @@ export class MigrationAssistant {
     );
 
     for (const { version, script } of path) {
-      console.log(`Starting migration to version ${version}...`);
+      this.logger?.(`Starting migration to version ${version}...`);
       const migrationID = await this.recordStartOfMigration(version);
       await this.connectAndQuery(script);
       await this.recordSuccessfulMigration(migrationID);
-      console.log(`Migrated to version ${version}`);
+      this.logger?.(`Migrated to version ${version}`);
     }
   }
 

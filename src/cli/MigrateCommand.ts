@@ -33,9 +33,11 @@ export const MigrateCommand: sacli.Command = {
     }
 
     handleCLIResult(
-      MigrationAssistant.fromSchemasDir(schemas).then((a) =>
-        a.migrate(version ?? null)
-      )
+      MigrationAssistant.fromSchemasDir(
+        schemas,
+        undefined,
+        console.log
+      ).then((a) => a.migrate(version ?? null))
     );
   },
 };

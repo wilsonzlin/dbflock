@@ -1,4 +1,4 @@
-export const handleCLIResult = (promise: Promise<any>): void => {
+export const handleCLIResult = (promise: Promise<unknown>): void => {
   promise.then(
     (data) => {
       if (data !== undefined) {
