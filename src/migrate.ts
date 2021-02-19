@@ -132,7 +132,7 @@ export class MigrationAssistant {
     return path;
   }
 
-  async migrate(toVersion: number | null): Promise<void> {
+  async migrate(toVersion?: number): Promise<void> {
     const fromVersion = await this.getCurrentVersion();
 
     this.logger?.(`Currently on version ${fromVersion}`);
