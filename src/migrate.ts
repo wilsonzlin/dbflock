@@ -132,7 +132,7 @@ export class MigrationAssistant {
     return path;
   }
 
-  async migrate(toVersion?: number): Promise<void> {
+  async migrate(toVersion: number = this.schemas.length - 1): Promise<void> {
     const fromVersion = await this.getCurrentVersion();
 
     this.logger?.(`Currently on version ${fromVersion}`);
@@ -140,13 +140,11 @@ export class MigrationAssistant {
 
     if (toVersion === fromVersion) {
       // Current version already meets requirements
+      this.logger?.(`No migration necessary`);
       return;
     }
 
-    const path = this.buildMigrationPath(
-      fromVersion ?? -1,
-      toVersion ?? this.schemas.length - 1
-    );
+    const path = this.buildMigrationPath(fromVersion ?? -1, toVersion);
 
     for (const { version, script } of path) {
       this.logger?.(`Starting migration to version ${version}...`);
