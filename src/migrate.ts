@@ -138,13 +138,11 @@ export class MigrationAssistant {
     this.logger?.(`Currently on version ${fromVersion}`);
     this.logger?.(`Targeting version ${toVersion}`);
 
-    if (toVersion === fromVersion) {
-      // Current version already meets requirements
+    const path = this.buildMigrationPath(fromVersion ?? -1, toVersion);
+    if (!path.length) {
       this.logger?.(`No migration necessary`);
       return;
     }
-
-    const path = this.buildMigrationPath(fromVersion ?? -1, toVersion);
 
     for (const { version, script } of path) {
       this.logger?.(`Starting migration to version ${version}...`);
