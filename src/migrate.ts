@@ -147,7 +147,7 @@ export class MigrationAssistant {
     for (const { version, script } of path) {
       this.logger?.(`Starting migration to version ${version}...`);
       const migrationID = await this.recordStartOfMigration(version);
-      await this.connectAndQuery(script);
+      await this.connectAndQuery(`begin;${script};commit;`);
       await this.recordSuccessfulMigration(migrationID);
       this.logger?.(`Migrated to version ${version}`);
     }
