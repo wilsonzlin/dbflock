@@ -132,7 +132,10 @@ export class MigrationAssistant {
     return path;
   }
 
-  async migrate(toVersion: number = this.schemas.length - 1): Promise<void> {
+  async migrate(
+    toVersion: number = this.schemas.length - 1,
+    useTransaction = false
+  ): Promise<void> {
     const fromVersion = await this.getCurrentVersion();
 
     this.logger?.(`Currently on version ${fromVersion}`);
@@ -147,7 +150,9 @@ export class MigrationAssistant {
     for (const { version, script } of path) {
       this.logger?.(`Starting migration to version ${version}...`);
       const migrationID = await this.recordStartOfMigration(version);
-      await this.connectAndQuery(`begin;${script};commit;`);
+      // Not all statements can be run within a transaction, so don't use transaction by default.
+      const actualScript = useTransaction ? `begin;${script};commit;` : script;
+      await this.connectAndQuery(actualScript);
       await this.recordSuccessfulMigration(migrationID);
       this.logger?.(`Migrated to version ${version}`);
     }
