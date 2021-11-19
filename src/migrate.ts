@@ -27,6 +27,21 @@ type Logger = (msg: string) => void;
 
 export type ClientConfig = pg.ClientConfig & { useNative?: boolean };
 
+export class MigrationQueryError extends Error {
+  constructor(
+    readonly sql: string,
+    readonly position: number,
+    readonly originalError: Error
+  ) {
+    super(
+      `Error occurred around:\n\n${sql.slice(
+        Math.max(0, position - 50),
+        Math.min(sql.length, position + 50)
+      )}\n\n${originalError.stack}`
+    );
+  }
+}
+
 export class MigrationAssistant {
   private static readonly DATABASE_SCHEMA_HISTORY_TABLE =
     "dbflock_migration_history";
@@ -83,6 +98,11 @@ export class MigrationAssistant {
 
     try {
       return await client.query(query, params);
+    } catch (err) {
+      if (typeof err.position == "number") {
+        throw new MigrationQueryError(query, err.position, err);
+      }
+      throw err;
     } finally {
       await client.end();
     }

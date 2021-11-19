@@ -22,7 +22,7 @@
     "strictFunctionTypes": true,
     "strictNullChecks": true,
     "strictPropertyInitialization": true,
-    "target": "es6"
+    "target": "es6",
+    "useUnknownInCatchVariables": false
   }
 }
-
