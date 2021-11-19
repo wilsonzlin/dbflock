@@ -99,8 +99,8 @@ export class MigrationAssistant {
     try {
       return await client.query(query, params);
     } catch (err) {
-      if (typeof err.position == "number") {
-        throw new MigrationQueryError(query, err.position, err);
+      if (typeof err.position == "number" || typeof err.position == "string") {
+        throw new MigrationQueryError(query, +err.position, err);
       }
       throw err;
     } finally {
